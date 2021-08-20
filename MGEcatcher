@@ -1,0 +1,241 @@
+#!/bin/bash
+
+set -ue
+check_deps() {
+    for app in blastn; do
+        command -v $app >/dev/null 2>&1 || error_exit "$0\nERROR: Cannot find \
+		${app}. Make sure $app is installed and in your PATH variable"
+    done
+}
+
+VERSION=0.1.0
+check_deps
+usage() {
+USAGE="
+=========================================================
+                  MGEcatcher (v0.1.0)
+
+Automated pipeline to identify mobile genetic elements in
+                  long read DNA data
+=========================================================
+by Vinícius H Franceschini Santos, 2020
+
+	Usage: MGEcatcher -r <reads.fq> -m <mge.fa> -t <N> \\
+                      -o <output.txt> -b <BC01>
+
+		-r          fastq file for basecalled reads to be used as subject
+		-m          fasta file containing MGE sequenced to be used as query
+		-o          output filename
+		-b          barcode identifier (ex.: BC01)
+		-t          number of threads (default: 10)
+	
+"
+printf "%s\\n" "$USAGE"
+exit 2
+}
+
+HOME_DIR=${0%/*}
+
+# parse args
+
+THREADS=10
+FMT=6
+
+while getopts  "hr:t:m:o:f:b:" OPT; do
+    case $OPT in
+    h)
+      usage
+      ;;
+    r)
+      READS=${OPTARG}
+      ;;
+    t)
+      THREADS=${OPTARG}
+      ;;
+    m)
+       MGE=${OPTARG}
+      ;;
+    o)
+       OUTPUT=${OPTARG}
+      ;;
+    b)
+      BC=${OPTARG}
+     ;;
+  esac
+done
+
+declare -A array # associative arrays need to be declared!
+array=( [-r]="${READS}" [-m]="${MGE}" [-o]="${OUTPUT}" [-b]="${BC}" )
+
+for idx in "${!array[@]}"; do
+	if [[ ! ${array[$idx]} ]]; then
+	echo "ERROR: $idx argument must be supplied. exiting..."
+	usage
+	fi
+done
+
+
+echo "=========================================================
+                  MGEcatcher (v0.1.0)
+
+Automated pipeline to identify mobile genetic elements in
+                  long read DNA data
+---------------------------------------------------------
+Reads: ${READS}
+MGE file: ${MGE}
+Output: ${OUTPUT}
+Threads: ${THREADS}
+Identifier: ${BC}
+========================================================="
+
+# make temp files
+mkdir -p ${OUTPUT}
+mkdir -p ${OUTPUT}/tmp/
+
+READ_BNAME=`basename ${READS}`
+
+FASTA=${OUTPUT}/tmp/${READ_BNAME%.*}.fasta
+
+if [ ! -f ${FASTA} ]; then
+	echo "= Converting fastq to fasta..."
+	#touch ${FASTA}
+	sed -n '1~4s/^@/>/p;2~4p' ${READS} > ${FASTA}
+	echo "==== Done"
+else 
+	echo "==== file ${FASTA} already exists... skipping"
+fi
+
+if [ ! -f ${FASTA}.nsq ]; then
+	echo "= Creating database for BLAST..."
+	makeblastdb -in ${FASTA} \
+		-dbtype nucl > /dev/null 2> /dev/null
+	echo "==== Done"
+else
+	echo "==== blast database already exists... skipping"
+fi
+
+MAPPINGOUT=${OUTPUT}/tmp/${READ_BNAME%.*}.MGE-mapping
+
+if [ ! -f "${MAPPINGOUT}" ]; then
+        echo "= Mapping MGEs with ${MGE}"
+        blastn -db ${FASTA} -query ${MGE} \
+		-strand plus \
+		-evalue 1e-03 \
+		-outfmt "7 qacc sacc sstart send qlen slen evalue" \
+		-task blastn -num_threads ${THREADS} \
+		-out $MAPPINGOUT > ${OUTPUT}/tmp/MGE-mapping.err 2>&1
+		echo "==== Done"
+else
+	echo "==== MGE-mapping already done... skipping"
+fi
+
+REDUCED=${MAPPINGOUT}.filtered.reduced.txt
+if [ ! -f ${REDUCED} ]; then
+        echo "= Filtering results"
+        # First step, select only those which size is approx. equal to MGE 
+        # length (i.e., more or less 10% of MGE size)
+        cat $MAPPINGOUT | \
+        	awk '{ if ($4 - $3 >= $5 * 0.9 && $4 - $3 <= $5 * 1.1){print $0}}' \
+        	> ${MAPPINGOUT}.filtered
+        # Second, apply the reduce function to remove overlapping
+        # alignments
+        Rscript "$HOME_DIR"/ReduceOverlappingMGEs.R ${MAPPINGOUT}.filtered > /dev/null
+        cp ${MAPPINGOUT}.filtered ${OUTPUT}/${BC}.reduced.txt
+        echo "= Done"
+else
+        echo "=== filtered results exist... skipping"
+fi
+
+if [ ! -f ${REDUCED}.upstream ]; then
+        echo "= Retrieving MGE name information (this takes some time)"
+        
+        while read line; do
+                grep -f <(echo $line | awk -v OFS="\t" '{ print $1, $2, $3 }') \
+                ${MAPPINGOUT} | head -n1
+        done < ${REDUCED} > ${REDUCED}.mge
+        
+	echo "= Parsing BLAST results"
+
+	echo == Writting files to be analyzed separetelly:
+	echo === a. hits for which we cannot extract 150bp upstreeam the MGE	
+	grep -v "#" ${REDUCED}.mge | \
+		awk 'BEGIN{OFS="\t"}{if($3<150){print$0}}' \
+		> ${REDUCED}.upstream
+
+        echo === b. hits for which we cannot extract 150bp downstream the MGE \
+		\(read ends before it\)
+	grep -v "#" ${REDUCED}.mge | \
+		awk 'BEGIN{OFS="\t"}{if($4>$6-150){print$0}}' \
+		> ${REDUCED}.downstream
+
+	echo === writing hits that cannot be use \(both 1 and 2 are true\)
+	grep -v "#" ${REDUCED}.mge | \
+		awk 'BEGIN{OFS="\t"}{if($4>$6-150 && $3<150){print$0}}' \
+		> ${REDUCED}.anything
+
+	echo === removing all hits written above
+	# we have hits that can easily extract the 300bp window
+
+	grep -v "#" ${REDUCED}.mge | \
+		grep -v -f ${REDUCED}.upstream | \
+		grep -v -f ${REDUCED}.downstream \
+		> ${REDUCED}.extract
+
+
+	# here I am writting the query files. I editted the query name so
+	# that it contains: (i) the name of the read the MGE was mapped 
+	# (ii) the MGE size, and (iii) the MGE name. These three fields are
+	# separated by '_' (see the last awk field: $2_$5_$1)
+
+	echo == writting upstream flank sequences
+	bedtools getfasta -fi ${FASTA} -name -bed <(cat \
+		${REDUCED}.extract | \
+		awk 'BEGIN{OFS="\t"}{ print $2, $3-150, $3, $2"_"$5"_"$1}') \
+		> ${REDUCED}.query.upstream 2> /dev/null
+
+	echo == writting downstream flank sequences
+	bedtools getfasta -fi ${FASTA} -name -bed <(cat \
+		${REDUCED}.extract | \
+		awk 'BEGIN{OFS="\t"}{ print $2, $4, $4+150, $2"_"$5"_"$1}') \
+		> ${REDUCED}.query.downstream
+
+	echo == merging...
+	python "$HOME_DIR"/MergeUpstreamDownstream.py \
+		-u ${REDUCED}.query.upstream \
+		-d ${REDUCED}.query.downstream \
+		-o ${REDUCED}.query.merged
+	echo "= Done"
+else
+	echo "=== results already parsed... skipping"
+fi
+
+cp ${REDUCED}.query.merged ${OUTPUT}/${BC}-flanks-query.fa
+BLASTOUT=${REDUCED}.blastn
+
+if [ ! -f "${BLASTOUT}" ]; then
+        echo "= Querying 300bp frags with BLASTn"
+        blastn -db ${FASTA} -query ${REDUCED}.query.merged \
+		-evalue 1e-03 \
+		-outfmt "7 qacc sacc sstart send length qlen slen evalue" \
+		-task megablast -num_threads ${THREADS} -strand plus \
+		-out $BLASTOUT > ${OUTPUT}/tmp/blastn.err 2>&1
+		echo "==== Done"
+else
+	echo "==== MGE-mapping already done... skipping"
+fi
+
+cp "${BLASTOUT}" "${OUTPUT}/${BC}-flanks-results.outfmt7"
+CLASSIFICATION="${OUTPUT}/${BC}_CLASSIFICATION/"
+
+mkdir -p "${CLASSIFICATION}"
+
+python "$HOME_DIR"/scripts/GetNonFixedReads.py --input "${BLASTOUT}" \
+		--prefix "${BC}" \
+		--output "${CLASSIFICATION}"
+
+bash bbmap/filterbyname.sh \
+        in="${READS}" \
+        names="${CLASSIFICATION}/${BC}.optionalMGEs-readnames.txt" \
+        out="${OUTPUT}/${BC}-to-assembly.fastq" \
+        include=f qin=33
+        
