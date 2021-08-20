@@ -1,8 +1,9 @@
 <p align="center"><img src="img/logo.png" alt="MGEcatcher" width="90%"></p>
 
-**MGEcatcher** is an automated pipeline to identify non-fixed mobile genetic elements (MGE) in a set of long read DNA data. It requires a fasta file with MGE sequences and the long reads fastq file. 
+**MGEcatcher** is an automated pipeline to identify non-fixed mobile genetic elements (MGE) in a set of long read DNA data.
+It can be used to remove reads containing those MGEs in order to improve genome assembly, or even to survey transposition events in the giving long read library. **MGEcatcher** need to be provided with a fasta file containing the MGE sequences and the long reads fastq file.
 
-# Requirements
+# Required softwares
 
 **MGEcatcher** requires:
 
