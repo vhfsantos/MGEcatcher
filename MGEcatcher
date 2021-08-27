@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ue
+set -e
 check_deps() {
     for app in blastn; do
         command -v $app >/dev/null 2>&1 || error_exit "$0\nERROR: Cannot find \
@@ -13,21 +13,21 @@ check_deps
 usage() {
 USAGE="
 =========================================================
-                  MGEcatcher (v0.1.0)
+                  MGEcatcher (v$VERSION)
 
 Automated pipeline to identify mobile genetic elements in
                   long read DNA data
 =========================================================
 by Vinícius H Franceschini Santos, 2020
 
-	Usage: MGEcatcher -r <reads.fq> -m <mge.fa> -t <N> \\
+Usage: MGEcatcher -r <reads.fq> -m <mge.fa> -t <N> \\
                       -o <output.txt> -b <BC01>
 
-		-r          fastq file for basecalled reads to be used as subject
-		-m          fasta file containing MGE sequenced to be used as query
-		-o          output filename
-		-b          barcode identifier (ex.: BC01)
-		-t          number of threads (default: 10)
+   -r          fastq file for basecalled reads to be used as subject
+   -m          fasta file containing MGE sequenced to be used as query
+   -o          output filename
+   -b          barcode identifier (ex.: BC01)
+   -t          number of threads (default: 10)
 	
 "
 printf "%s\\n" "$USAGE"
@@ -76,7 +76,7 @@ done
 
 
 echo "=========================================================
-                  MGEcatcher (v0.1.0)
+                  MGEcatcher (v$VERSION)
 
 Automated pipeline to identify mobile genetic elements in
                   long read DNA data
@@ -98,7 +98,6 @@ FASTA=${OUTPUT}/tmp/${READ_BNAME%.*}.fasta
 
 if [ ! -f ${FASTA} ]; then
 	echo "= Converting fastq to fasta..."
-	#touch ${FASTA}
 	sed -n '1~4s/^@/>/p;2~4p' ${READS} > ${FASTA}
 	echo "==== Done"
 else 
@@ -233,9 +232,11 @@ python "$HOME_DIR"/scripts/GetNonFixedReads.py --input "${BLASTOUT}" \
 		--prefix "${BC}" \
 		--output "${CLASSIFICATION}"
 
-bash bbmap/filterbyname.sh \
-        in="${READS}" \
-        names="${CLASSIFICATION}/${BC}.optionalMGEs-readnames.txt" \
-        out="${OUTPUT}/${BC}-to-assembly.fastq" \
-        include=f qin=33
+rm -rf "${OUTPUT}"/tmp
+
+#bash bbmap/filterbyname.sh \
+#        in="${READS}" \
+#        names="${CLASSIFICATION}/${BC}.optionalMGEs-readnames.txt" \
+#        out="${OUTPUT}/${BC}-to-assembly.fastq" \
+#        include=f qin=33
         
