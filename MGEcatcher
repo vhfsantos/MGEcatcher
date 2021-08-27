@@ -35,13 +35,23 @@ exit 2
 }
 
 HOME_DIR=${0%/*}
-
+# Log message function (normal text)
+log() {
+	echo [$(date +%Y-%m-%d" "%H:%M:%S)] $1
+}
+# Warning message function (yellow text)
+warn() {
+	echo -e "\033[1;33m"[$(date +%Y-%m-%d" "%H:%M:%S)] $1"\033[0m"
+	}
+# "Done" message function
+DONEmsg() {
+	echo -e [$(date +%Y-%m-%d" "%H:%M:%S)] Done!
+}
 # parse args
 
 THREADS=10
-FMT=6
 
-while getopts  "hr:t:m:o:f:b:" OPT; do
+while getopts "hr:t:m:o:f:b:" OPT; do
     case $OPT in
     h)
       usage
@@ -97,40 +107,40 @@ READ_BNAME=`basename ${READS}`
 FASTA=${OUTPUT}/tmp/${READ_BNAME%.*}.fasta
 
 if [ ! -f ${FASTA} ]; then
-	echo "= Converting fastq to fasta..."
+	log "Converting fastq to fasta..."
 	sed -n '1~4s/^@/>/p;2~4p' ${READS} > ${FASTA}
-	echo "==== Done"
+	DONEmsg
 else 
-	echo "==== file ${FASTA} already exists... skipping"
+	warn "file ${FASTA} already exists... skipping"
 fi
 
 if [ ! -f ${FASTA}.nsq ]; then
-	echo "= Creating database for BLAST..."
+	log "Creating database for BLAST..."
 	makeblastdb -in ${FASTA} \
 		-dbtype nucl > /dev/null 2> /dev/null
-	echo "==== Done"
+	DONEmsg
 else
-	echo "==== blast database already exists... skipping"
+	warn "Blast database already exists... skipping"
 fi
 
 MAPPINGOUT=${OUTPUT}/tmp/${READ_BNAME%.*}.MGE-mapping
 
 if [ ! -f "${MAPPINGOUT}" ]; then
-        echo "= Mapping MGEs with ${MGE}"
+        log "Mapping MGEs with ${MGE}"
         blastn -db ${FASTA} -query ${MGE} \
 		-strand plus \
 		-evalue 1e-03 \
 		-outfmt "7 qacc sacc sstart send qlen slen evalue" \
 		-task blastn -num_threads ${THREADS} \
 		-out $MAPPINGOUT > ${OUTPUT}/tmp/MGE-mapping.err 2>&1
-		echo "==== Done"
+		DONEmsg
 else
-	echo "==== MGE-mapping already done... skipping"
+	warn "MGE-mapping already done... skipping"
 fi
 
 REDUCED=${MAPPINGOUT}.filtered.reduced.txt
 if [ ! -f ${REDUCED} ]; then
-        echo "= Filtering results"
+        log "Filtering results"
         # First step, select only those which size is approx. equal to MGE 
         # length (i.e., more or less 10% of MGE size)
         cat $MAPPINGOUT | \
@@ -138,41 +148,41 @@ if [ ! -f ${REDUCED} ]; then
         	> ${MAPPINGOUT}.filtered
         # Second, apply the reduce function to remove overlapping
         # alignments
-        Rscript "$HOME_DIR"/ReduceOverlappingMGEs.R ${MAPPINGOUT}.filtered > /dev/null
+        Rscript "$HOME_DIR"/ReduceOverlappingMGEs.R ${MAPPINGOUT}.filtered \
+        > /dev/null
         cp ${MAPPINGOUT}.filtered ${OUTPUT}/${BC}.reduced.txt
-        echo "= Done"
+        log "Done"
 else
-        echo "=== filtered results exist... skipping"
+        warn "filtered results exist... skipping"
 fi
 
 if [ ! -f ${REDUCED}.upstream ]; then
-        echo "= Retrieving MGE name information (this takes some time)"
+        log "Retrieving MGE name information (this takes some time)"
         
         while read line; do
                 grep -f <(echo $line | awk -v OFS="\t" '{ print $1, $2, $3 }') \
                 ${MAPPINGOUT} | head -n1
         done < ${REDUCED} > ${REDUCED}.mge
         
-	echo "= Parsing BLAST results"
+	log "Parsing BLAST results"
 
-	echo == Writting files to be analyzed separetelly:
-	echo === a. hits for which we cannot extract 150bp upstreeam the MGE	
+	log "Writting files to be analyzed separetelly"
+	#a. hits for which we cannot extract 150bp upstreeam the MGE"	
 	grep -v "#" ${REDUCED}.mge | \
 		awk 'BEGIN{OFS="\t"}{if($3<150){print$0}}' \
 		> ${REDUCED}.upstream
 
-        echo === b. hits for which we cannot extract 150bp downstream the MGE \
-		\(read ends before it\)
+        #b. hits for which we cannot extract 150bp downstream the MGE (read ends before it)"
 	grep -v "#" ${REDUCED}.mge | \
 		awk 'BEGIN{OFS="\t"}{if($4>$6-150){print$0}}' \
 		> ${REDUCED}.downstream
 
-	echo === writing hits that cannot be use \(both 1 and 2 are true\)
+	#writing hits that cannot be use (both 1 and 2 are true)"
 	grep -v "#" ${REDUCED}.mge | \
 		awk 'BEGIN{OFS="\t"}{if($4>$6-150 && $3<150){print$0}}' \
 		> ${REDUCED}.anything
 
-	echo === removing all hits written above
+	DONEmsg
 	# we have hits that can easily extract the 300bp window
 
 	grep -v "#" ${REDUCED}.mge | \
@@ -186,41 +196,41 @@ if [ ! -f ${REDUCED}.upstream ]; then
 	# (ii) the MGE size, and (iii) the MGE name. These three fields are
 	# separated by '_' (see the last awk field: $2_$5_$1)
 
-	echo == writting upstream flank sequences
+	log "Writting upstream flank sequences"
 	bedtools getfasta -fi ${FASTA} -name -bed <(cat \
 		${REDUCED}.extract | \
 		awk 'BEGIN{OFS="\t"}{ print $2, $3-150, $3, $2"_"$5"_"$1}') \
 		> ${REDUCED}.query.upstream 2> /dev/null
 
-	echo == writting downstream flank sequences
+	#writting downstream flank sequences"
 	bedtools getfasta -fi ${FASTA} -name -bed <(cat \
 		${REDUCED}.extract | \
 		awk 'BEGIN{OFS="\t"}{ print $2, $4, $4+150, $2"_"$5"_"$1}') \
 		> ${REDUCED}.query.downstream
 
-	echo == merging...
+	log "Merging upstream and downstream flanks"
 	python "$HOME_DIR"/MergeUpstreamDownstream.py \
 		-u ${REDUCED}.query.upstream \
 		-d ${REDUCED}.query.downstream \
 		-o ${REDUCED}.query.merged
-	echo "= Done"
+	DONEmsg
 else
-	echo "=== results already parsed... skipping"
+	warn "Results already parsed... skipping"
 fi
 
 cp ${REDUCED}.query.merged ${OUTPUT}/${BC}-flanks-query.fa
 BLASTOUT=${REDUCED}.blastn
 
 if [ ! -f "${BLASTOUT}" ]; then
-        echo "= Querying 300bp frags with BLASTn"
+        log "Querying 300bp frags with BLASTn"
         blastn -db ${FASTA} -query ${REDUCED}.query.merged \
 		-evalue 1e-03 \
 		-outfmt "7 qacc sacc sstart send length qlen slen evalue" \
 		-task megablast -num_threads ${THREADS} -strand plus \
 		-out $BLASTOUT > ${OUTPUT}/tmp/blastn.err 2>&1
-		echo "==== Done"
+		DONEmsg
 else
-	echo "==== MGE-mapping already done... skipping"
+	warn "MGE-mapping already done... skipping"
 fi
 
 cp "${BLASTOUT}" "${OUTPUT}/${BC}-flanks-results.outfmt7"
@@ -228,11 +238,19 @@ CLASSIFICATION="${OUTPUT}/${BC}_CLASSIFICATION/"
 
 mkdir -p "${CLASSIFICATION}"
 
-python "$HOME_DIR"/scripts/GetNonFixedReads.py --input "${BLASTOUT}" \
+if [ ! -f "${CLASSIFICATION}/${BC}.optionalMGEs.txt" ]; then
+	log "Classificating reads as fixed or optional"
+	python "$HOME_DIR"/scripts/GetNonFixedReads.py \
+		--input "${BLASTOUT}" \
 		--prefix "${BC}" \
 		--output "${CLASSIFICATION}"
-
-rm -rf "${OUTPUT}"/tmp
+	DONEmsg
+	log "Removing temporary files"
+	rm -rf "${OUTPUT}"/tmp
+	DONEmsg
+else
+	warn "Classification already done... skipping"
+fi
 
 #bash bbmap/filterbyname.sh \
 #        in="${READS}" \
