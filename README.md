@@ -1,10 +1,10 @@
 <p align="center"><img src="img/logo.png" alt="MGEcatcher" width="80%"></p>
 
 **MGEcatcher** is an automated pipeline to identify non-fixed mobile genetic elements (MGE) in a set of long read DNA data.
-**MGEcatcher** can be use to remove reads containing those MGEs in order to improve genome assembly, or even to survey transposition events in the giving long read DNA sequencing library. 
+**MGEcatcher** can be used to remove reads containing those MGEs in order to improve genome assembly, or even to survey transposition events in the giving long read DNA sequencing library. 
 **MGEcatcher** only needs to be provided with a fasta file containing the MGE sequences and the long reads fastq file.
 
-# Required softwares
+# Required software
 
 **MGEcatcher** requires:
 
@@ -21,16 +21,16 @@
 # Input Data
 
 **MGEcatcher** works with minION or PacBio long reads data in `fastq` format.
-Besides the `fastq` file you will also need to input the `fasta` file containing the sequences of the MGEs.
+Besides the `fastq` file, you will also need to input the `fasta` file containing the sequences of the MGEs.
 
 If you don't have this second `fasta`, you can try the following:
 
 1. Download the `gff` annotation file for your reference genome
 1. Select only the MGEs features from the raw `gff` (let's call this output `mges-only.gff`)
-1. Use `mges-only.gff` as input for the [BEDtools' GetFasta](https://bedtools.readthedocs.io/en/latest/content/tools/getfasta.html) program to extract the sequence of this features.
+1. Use `mges-only.gff` as input for the [BEDtools' GetFasta](https://bedtools.readthedocs.io/en/latest/content/tools/getfasta.html) program to extract the sequence of these features.
 1. (Optional) You may want to cluster the MGE sequences with tools such as [CD-HIT](http://cd-hit.org/)
 
-Now you can run **MGEcatcher** properlly. 
+Now you can run **MGEcatcher** properly. 
 
 # Usage
 
@@ -55,9 +55,9 @@ Files named `-readnames.txt` contains only the names of the reads for each class
 Filed named only `.txt` contains more detailed information about the analysis.
 
 For the `.optionalMGEs.txt` file, the column `queryname` contains the read in which the optional MGE was found. The `seqnames` column contains the names of the reads containing the without-MGE version of the region sequenced by the query.
-For the `fixedMGEs.txt`, `queryname` has the name of the reads whose MGE was also find in the read in the `seqnames` column. 
+For the `fixedMGEs.txt`, `queryname` has the name of the reads whose MGE was also found in the read in the `seqnames` column. 
 
-The `.txt` files may be use as input for a transposition analysis of your libraries (_e.g_ for comparing the change in the transposition events among the sequenced libraries). Also, the `.optionalMGEs.txt` file can be use to remove those reads from the raw `fastq` file (_e.g_ for improving the genome assembly of the sequenced libraries). 
+The `.txt` files may be used as input for a transposition analysis of your libraries (_e.g_ for comparing the change in the transposition events among the sequenced libraries). Also, the `.optionalMGEs.txt` file can be used to remove those reads from the raw `fastq` file (_e.g_ for improving the genome assembly of the sequenced libraries). 
 
 # Acknowledgements
 
