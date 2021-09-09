@@ -1,4 +1,4 @@
-<p align="center"><img src="img/logo.png" alt="MGEcatcher" width="90%"></p>
+<p align="center"><img src="img/logo.png" alt="MGEcatcher" width="80%"></p>
 
 **MGEcatcher** is an automated pipeline to identify non-fixed mobile genetic elements (MGE) in a set of long read DNA data.
 **MGEcatcher** can be use to remove reads containing those MGEs in order to improve genome assembly, or even to survey transposition events in the giving long read DNA sequencing library. 
