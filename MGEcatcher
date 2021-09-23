@@ -30,7 +30,7 @@ MGEcatcher --reads <reads.fq> --mge_seq <mge.fa> [--threads <N>] \\
    --threads      Number of threads (default: 10)
 
 "
-printf "%s\\n" "$USAGE"
+echo -e "$USAGE"
 exit 2
 }
 
@@ -43,8 +43,8 @@ error_exit() {
 }
 
 check_deps() {
-    for app in $CONDA_PREFIX/bin/blastn $CONDA_PREFIX/bin/bedtools; do
-        command -v $app >/dev/null 2>&1 || error_exit \
+    for app in blastn bedtools; do
+        command -v $CONDA_PREFIX/bin/$app >/dev/null 2>&1 || error_exit \
                 "ERROR: Cannot find ${app}. Make sure it is installed and in your PATH variable"
     done
 }
