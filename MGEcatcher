@@ -82,22 +82,29 @@ while true ; do
     -h | --help )
       usage
       ;;
-    r)
+    --reads )
       READS=${OPTARG}
       ;;
-    t)
+    --threads )
       THREADS=${OPTARG}
       ;;
-    m)
+    --mge_seq )
        MGE=${OPTARG}
       ;;
-    o)
+    --output )
        OUTPUT=${OPTARG}
       ;;
-    b)
+    --barcode )
       BC=${OPTARG}
      ;;
-  esac
+    -- )
+     shift
+     break
+     ;;
+    *)
+     error_exit "ERROR: Please, supply required arguments correctly."
+     ;;
+ esac
 done
 
 declare -A array # associative arrays need to be declared!
@@ -112,7 +119,7 @@ done
 
 
 echo "=========================================================
-                  MGEcatcher (v$VERSION)
+                    MGEcatcher (v$VERSION)
 
 Automated pipeline to identify mobile genetic elements in
                   long read DNA data
