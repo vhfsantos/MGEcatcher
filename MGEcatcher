@@ -2,23 +2,7 @@
 
 set -e
 
-# error function
-error_exit() {
-        msg=$1
-        exit_code=${2:-1}
-        echo -e "\033[1;31m${msg}\033[0m"
-        usage
-}
-
-check_deps() {
-    for app in $CONDA_PREFIX/bin/blastn $CONDA_PREFIX/bin/bedtools; do
-        command -v $app >/dev/null 2>&1 || error_exit "$0\nERROR: Cannot find \
-		${app}. Make sure $app is installed and in your PATH variable"
-    done
-}
-
-VERSION=0.2
-check_deps
+#usage
 usage() {
 USAGE="
 =========================================================
@@ -49,6 +33,25 @@ MGEcatcher --reads <reads.fq> --mge_seq <mge.fa> [--threads <N>] \\
 printf "%s\\n" "$USAGE"
 exit 2
 }
+
+# error function
+error_exit() {
+        msg=$1
+        exit_code=${2:-1}
+        echo -e "\033[1;31m${msg}\033[0m"
+        usage
+}
+
+check_deps() {
+    for app in $CONDA_PREFIX/bin/blastn $CONDA_PREFIX/bin/bedtools; do
+        command -v $app >/dev/null 2>&1 || error_exit \
+                "ERROR: Cannot find ${app}. Make sure it is installed and in your PATH variable"
+    done
+}
+
+VERSION=0.2
+check_deps
+
 
 HOME_DIR=${0%/*}
 # Log message function (normal text)
