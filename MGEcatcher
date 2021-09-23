@@ -11,7 +11,7 @@ USAGE="
 Automated pipeline to identify mobile genetic elements in
                   long read DNA data
 =========================================================
-by Vinícius H Franceschini Santos, 2020
+by Vinícius Franceschini-Santos, 2020
 
 \e[4mUsage\e[0m:
 
@@ -20,14 +20,14 @@ MGEcatcher --reads <reads.fq> --mge_seq <mge.fa> [--threads <N>] \\
 
 \e[4mRequired arguments\e[0m:
 
-   --reads        Fastq file for basecalled reads to be used as subject
-   --mge_seq      Fasta file containing MGE sequences to be used as query
-   --output       Output dir name; will be created if does not exist
-   --barcode      Barcode identifier (ex.: BC01)
+--reads        Fastq file for basecalled reads to be used as subject
+--mge_seq      Fasta file containing MGE sequences to be used as query
+--output       Output dir name; will be created if does not exist
+--barcode      Barcode identifier (ex.: BC01)
 
 \e[4mOptional arguments\e[0m:
 
-   --threads      Number of threads (default: 10)
+--threads      Number of threads (default: 10)
 
 "
 echo -e "$USAGE"
