@@ -2,7 +2,7 @@
 
 set -e
 check_deps() {
-    for app in blastn; do
+    for app in $CONDA_PREFIX/bin/blastn $CONDA_PREFIX/bin/bedtools; do
         command -v $app >/dev/null 2>&1 || error_exit "$0\nERROR: Cannot find \
 		${app}. Make sure $app is installed and in your PATH variable"
     done
@@ -24,11 +24,11 @@ Usage: MGEcatcher -r <reads.fq> -m <mge.fa> -t <N> \\
                       -o <output.txt> -b <BC01>
 
    -r          fastq file for basecalled reads to be used as subject
-   -m          fasta file containing MGE sequenced to be used as query
+   -m          fasta file containing MGE sequences to be used as query
    -o          output filename
    -b          barcode identifier (ex.: BC01)
    -t          number of threads (default: 10)
-	
+
 "
 printf "%s\\n" "$USAGE"
 exit 2
@@ -110,13 +110,13 @@ if [ ! -f ${FASTA} ]; then
 	log "Converting fastq to fasta..."
 	sed -n '1~4s/^@/>/p;2~4p' ${READS} > ${FASTA}
 	DONEmsg
-else 
+else
 	warn "file ${FASTA} already exists... skipping"
 fi
 
 if [ ! -f ${FASTA}.nsq ]; then
 	log "Creating database for BLAST..."
-	makeblastdb -in ${FASTA} \
+	$CONDA_PREFIX/bin/makeblastdb -in ${FASTA} \
 		-dbtype nucl > /dev/null 2> /dev/null
 	DONEmsg
 else
@@ -127,7 +127,7 @@ MAPPINGOUT=${OUTPUT}/tmp/${READ_BNAME%.*}.MGE-mapping
 
 if [ ! -f "${MAPPINGOUT}" ]; then
         log "Mapping MGEs with ${MGE}"
-        blastn -db ${FASTA} -query ${MGE} \
+        $CONDA_PREFIX/bin/blastn -db ${FASTA} -query ${MGE} \
 		-strand plus \
 		-evalue 1e-03 \
 		-outfmt "7 qacc sacc sstart send qlen slen evalue" \
@@ -141,14 +141,15 @@ fi
 REDUCED=${MAPPINGOUT}.filtered.reduced.txt
 if [ ! -f ${REDUCED} ]; then
         log "Filtering results"
-        # First step, select only those which size is approx. equal to MGE 
+        # First step, select only those which size is approx. equal to MGE
         # length (i.e., more or less 10% of MGE size)
         cat $MAPPINGOUT | \
         	awk '{ if ($4 - $3 >= $5 * 0.9 && $4 - $3 <= $5 * 1.1){print $0}}' \
         	> ${MAPPINGOUT}.filtered
         # Second, apply the reduce function to remove overlapping
         # alignments
-        Rscript "$HOME_DIR"/ReduceOverlappingMGEs.R ${MAPPINGOUT}.filtered \
+        $CONDA_PREFIX/bin/Rscript "$HOME_DIR"/ReduceOverlappingMGEs.R \
+                ${MAPPINGOUT}.filtered \
         > /dev/null
         cp ${MAPPINGOUT}.filtered ${OUTPUT}/${BC}.reduced.txt
         log "Done"
@@ -158,16 +159,16 @@ fi
 
 if [ ! -f ${REDUCED}.upstream ]; then
         log "Retrieving MGE name information (this takes some time)"
-        
+
         while read line; do
                 grep -f <(echo $line | awk -v OFS="\t" '{ print $1, $2, $3 }') \
                 ${MAPPINGOUT} | head -n1
         done < ${REDUCED} > ${REDUCED}.mge
-        
+
 	log "Parsing BLAST results"
 
 	log "Writting files to be analyzed separetelly"
-	#a. hits for which we cannot extract 150bp upstreeam the MGE"	
+	#a. hits for which we cannot extract 150bp upstreeam the MGE"
 	grep -v "#" ${REDUCED}.mge | \
 		awk 'BEGIN{OFS="\t"}{if($3<150){print$0}}' \
 		> ${REDUCED}.upstream
@@ -192,24 +193,24 @@ if [ ! -f ${REDUCED}.upstream ]; then
 
 
 	# here I am writting the query files. I editted the query name so
-	# that it contains: (i) the name of the read the MGE was mapped 
+	# that it contains: (i) the name of the read the MGE was mapped
 	# (ii) the MGE size, and (iii) the MGE name. These three fields are
 	# separated by '_' (see the last awk field: $2_$5_$1)
 
 	log "Writting upstream flank sequences"
-	bedtools getfasta -fi ${FASTA} -name -bed <(cat \
+	$CONDA_PREFIX/bin/bedtools getfasta -fi ${FASTA} -name -bed <(cat \
 		${REDUCED}.extract | \
 		awk 'BEGIN{OFS="\t"}{ print $2, $3-150, $3, $2"_"$5"_"$1}') \
 		> ${REDUCED}.query.upstream 2> /dev/null
 
 	#writting downstream flank sequences"
-	bedtools getfasta -fi ${FASTA} -name -bed <(cat \
+	$CONDA_PREFIX/bin/bedtools getfasta -fi ${FASTA} -name -bed <(cat \
 		${REDUCED}.extract | \
 		awk 'BEGIN{OFS="\t"}{ print $2, $4, $4+150, $2"_"$5"_"$1}') \
 		> ${REDUCED}.query.downstream
 
 	log "Merging upstream and downstream flanks"
-	python "$HOME_DIR"/MergeUpstreamDownstream.py \
+	$CONDA_PREFIX/bin/python "$HOME_DIR"/MergeUpstreamDownstream.py \
 		-u ${REDUCED}.query.upstream \
 		-d ${REDUCED}.query.downstream \
 		-o ${REDUCED}.query.merged
@@ -223,7 +224,7 @@ BLASTOUT=${REDUCED}.blastn
 
 if [ ! -f "${BLASTOUT}" ]; then
         log "Querying 300bp frags with BLASTn"
-        blastn -db ${FASTA} -query ${REDUCED}.query.merged \
+        $CONDA_PREFIX/bin/blastn -db ${FASTA} -query ${REDUCED}.query.merged \
 		-evalue 1e-03 \
 		-outfmt "7 qacc sacc sstart send length qlen slen evalue" \
 		-task megablast -num_threads ${THREADS} -strand plus \
@@ -240,7 +241,7 @@ mkdir -p "${CLASSIFICATION}"
 
 if [ ! -f "${CLASSIFICATION}/${BC}.optionalMGEs.txt" ]; then
 	log "Classificating reads as fixed or optional"
-	python "$HOME_DIR"/scripts/GetNonFixedReads.py \
+	$CONDA_PREFIX/bin/python "$HOME_DIR"/scripts/GetNonFixedReads.py \
 		--input "${BLASTOUT}" \
 		--prefix "${BC}" \
 		--output "${CLASSIFICATION}"
@@ -257,4 +258,3 @@ fi
 #        names="${CLASSIFICATION}/${BC}.optionalMGEs-readnames.txt" \
 #        out="${OUTPUT}/${BC}-to-assembly.fastq" \
 #        include=f qin=33
-        
