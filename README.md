@@ -50,7 +50,8 @@ MGEcatcher -r reads.fastq -m mges.fasta -o output_name -b Barcode01 -t 10
 
 # Output files
 
-**MGEcatcher** outputs several files. Inside the `CLASSIFICATION` folder, you will find the information about the reads containing fixed and non-fixed (_i.e._, optional) MGEs. 
+**MGEcatcher** outputs several files. 
+Inside the `CLASSIFICATION` folder, you will find the information about the reads containing fixed and non-fixed (_i.e._, optional) MGEs. 
 Files named `-readnames.txt` contains only the names of the reads for each classification.
 Filed named only `.txt` contains more detailed information about the analysis.
 
