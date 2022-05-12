@@ -5,25 +5,37 @@ set -e
 #usage
 usage() {
 USAGE="
-=========================================================
-                  MGEcatcher (v$VERSION)
+                              ███╗   ███╗ ██████╗ ███████╗             
+                              ████╗ ████║██╔════╝ ██╔════╝             
+                              ██╔████╔██║██║  ███╗█████╗               
+                              ██║╚██╔╝██║██║   ██║██╔══╝               
+                              ██║ ╚═╝ ██║╚██████╔╝███████╗             
+                              ╚═╝     ╚═╝ ╚═════╝ ╚══════╝             
+               ██████╗ █████╗ ████████╗ ██████╗██╗  ██╗███████╗██████╗ 
+              ██╔════╝██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔════╝██╔══██╗
+              ██║     ███████║   ██║   ██║     ███████║█████╗  ██████╔╝
+              ██║     ██╔══██║   ██║   ██║     ██╔══██║██╔══╝  ██╔══██╗
+              ╚██████╗██║  ██║   ██║   ╚██████╗██║  ██║███████╗██║  ██║
+               ╚═════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 
-Automated pipeline to identify mobile genetic elements in
-                  long read DNA data
-=========================================================
-by Vinícius Franceschini-Santos, 2020
+══════════════════════════════════════════════════════════════════════════════════
+                 Automated pipeline to identify mobile genetic elements 
+                          in long read DNA sequencing data
+----------------------------------------------------------------------------------
+                          by: Vinícius Franceschini-Santos, 2022
+══════════════════════════════════════════════════════════════════════════════════
 
 \e[4mUsage\e[0m:
 
-MGEcatcher --reads <reads.fq> --mge_seq <mge.fa> [--threads <N>] \\
-           --output <path/to/output/> --barcode <BC01>
+MGEcatcher --reads <reads.fq> --mge_seed <mge.fa> [--threads <N>] \\
+           --output <path/to/output/> --prefix <BC01>
 
 \e[4mRequired arguments\e[0m:
 
---reads        Fastq file for basecalled reads to be used as subject
---mge_seq      Fasta file containing MGE sequences to be used as query
---output       Output dir name; will be created if does not exist
---barcode      Barcode identifier (ex.: BC01)
+--reads         Fastq file for basecalled reads to be used as subject
+--mge_seed      Fasta file containing MGE sequences to be used as query
+--output        Output dir name; will be created if does not exist
+--prefix        Barcode identifier (ex.: BC01)
 
 \e[4mOptional arguments\e[0m:
 
@@ -71,7 +83,7 @@ DONEmsg() {
 THREADS=10
 # option strings
 SHORT=h
-LONG=help,reads:,barcode:,mge_seq:,output:,threads:
+LONG=help,reads:,prefix:,mge_seed:,output:,threads:
 
 # read the options
 OPTS=$(getopt --options $SHORT --long $LONG --name "$0" -- "$@")
@@ -88,13 +100,13 @@ while true ; do
     --threads )
       THREADS=${OPTARG}
       ;;
-    --mge_seq )
+    --mge_seed )
        MGE=${OPTARG}
       ;;
     --output )
        OUTPUT=${OPTARG}
       ;;
-    --barcode )
+    --prefix )
       BC=${OPTARG}
      ;;
     -- )
@@ -108,7 +120,7 @@ while true ; do
 done
 
 declare -A array # associative arrays need to be declared!
-array=( [-r]="${READS}" [-m]="${MGE}" [-o]="${OUTPUT}" [-b]="${BC}" )
+array=( [--reads]="${READS}" [--mge_seed]="${MGE}" [--output]="${OUTPUT}" [--prefix]="${BC}" )
 
 for idx in "${!array[@]}"; do
 	if [[ ! ${array[$idx]} ]]; then
@@ -118,18 +130,34 @@ for idx in "${!array[@]}"; do
 done
 
 
-echo "=========================================================
-                    MGEcatcher (v$VERSION)
+echo "
+                              ███╗   ███╗ ██████╗ ███████╗             
+                              ████╗ ████║██╔════╝ ██╔════╝             
+                              ██╔████╔██║██║  ███╗█████╗               
+                              ██║╚██╔╝██║██║   ██║██╔══╝               
+                              ██║ ╚═╝ ██║╚██████╔╝███████╗             
+                              ╚═╝     ╚═╝ ╚═════╝ ╚══════╝             
+               ██████╗ █████╗ ████████╗ ██████╗██╗  ██╗███████╗██████╗ 
+              ██╔════╝██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔════╝██╔══██╗
+              ██║     ███████║   ██║   ██║     ███████║█████╗  ██████╔╝
+              ██║     ██╔══██║   ██║   ██║     ██╔══██║██╔══╝  ██╔══██╗
+              ╚██████╗██║  ██║   ██║   ╚██████╗██║  ██║███████╗██║  ██║
+               ╚═════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 
-Automated pipeline to identify mobile genetic elements in
-                  long read DNA data
----------------------------------------------------------
-Reads: ${READS}
-MGE file: ${MGE}
-Output: ${OUTPUT}
-Threads: ${THREADS}
-Identifier: ${BC}
-========================================================="
+══════════════════════════════════════════════════════════════════════════════════
+                 Automated pipeline to identify mobile genetic elements 
+                          in long read DNA sequencing data
+----------------------------------------------------------------------------------
+                          by: Vinícius Franceschini-Santos, 2022
+══════════════════════════════════════════════════════════════════════════════════"
+echo "
+Reads:|${READS}
+MGE seed:|${MGE}
+Output:|${OUTPUT}
+Threads:|${THREADS}
+Prefix:|${BC}" | column -t -s "|"
+
+exit
 
 # make temp files
 mkdir -p ${OUTPUT}
