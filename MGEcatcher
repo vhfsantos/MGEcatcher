@@ -216,15 +216,12 @@ fi
 #### RSCRIPT TO REDUCE OVERLAPS
 echo "
 #!/usr/bin/env Rscript
-options(warn=-1)
-args = commandArgs(trailingOnly=T)
 
-suppressPackageStartupMessages({
-    	require(GenomicRanges)
-    	require(IRanges)
-    	require(ggbio)
-    	require(dplyr)
-})
+library(GenomicRanges)
+library(IRanges)
+library(ggbio)
+library(dplyr)
+
 
 # writting functions to be called in apply furtherly
 
@@ -325,7 +322,7 @@ if [ ! -f ${REDUCED} ]; then
         # Second, apply the reduce function to remove overlapping
         # alignments
         $CONDA_PREFIX/bin/Rscript \
-			${OUTPUT}/${PREFIX}_reduce_overlapping_MGEs.R > /dev/null
+			${OUTPUT}/${PREFIX}_reduce_overlapping_MGEs.R
 else
         warn "Filtered results exist... skipping"
 fi
