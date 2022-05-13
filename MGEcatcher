@@ -473,8 +473,8 @@ def write_feat_dic():
 # different. 
 
 def get_unfixed_mges(feat_dic):
-	print('#mge_name\tquery_read_name\tread_name\tquery_read_name')
-	print('#INTERPRETATION:\n<flank of this MGE>\t<generated from this read>\t<was mapped with no gaps in this read>\t<this read will be removed>')
+    print('#mge_name\tquery_read_name\tread_name\tquery_read_name')
+    print('#INTERPRETATION:\n<flank of this MGE>\t<generated from this read>\t<was mapped with no gaps in this read>\t<this read will be removed>')
     reads_to_remove = []
     with open('${CLASSIFICATION}/${PREFIX}.unfixed_MGEs.readnames','w') as FILEoutRN:
         with open('${CLASSIFICATION}/${PREFIX}.unfixed_MGEs.txt','w') as FILEout:
