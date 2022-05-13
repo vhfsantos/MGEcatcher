@@ -80,7 +80,7 @@ log() {
 }
 # Warning message function (yellow text)
 warn() {
-	printf "\033[1;33mWARNING:%*s\033[0m\n" 72 "$1"
+	printf "\033[1;33mWARNING:%*s\033[0m\n" 75 "$1"
 	}
 # "Done" message function
 DONEmsg() {
@@ -186,7 +186,7 @@ if [ ! -f ${FASTA} ]; then
 	sed -n '1~4s/^@/>/p;2~4p' ${READS} > ${FASTA}
 
 else
-	warn "File ${FASTA} already exists. Skipping..."
+	warn "File ${FASTA} already exists. Skipping"
 fi
 
 if [ ! -f ${FASTA}.nsq ]; then
@@ -195,7 +195,7 @@ if [ ! -f ${FASTA}.nsq ]; then
 		-dbtype nucl > /dev/null 2> /dev/null
 
 else
-	warn "Blast database already exists. Skipping..."
+	warn "Blast database already exists. Skipping"
 fi
 
 MAPPINGOUT=${OUTPUT}/tmp/${READ_BNAME%.*}.MGE-mapping
@@ -210,7 +210,7 @@ if [ ! -f "${MAPPINGOUT}" ]; then
 		-out $MAPPINGOUT > ${OUTPUT}/tmp/MGE-mapping.err 2>&1
 	
 else
-	warn "MGE-mapping already done. Skipping..."
+	warn "MGE-mapping already done. Skipping"
 fi
 
 #### RSCRIPT TO REDUCE OVERLAPS
@@ -328,7 +328,7 @@ if [ ! -f ${REDUCED} ]; then
         $CONDA_PREFIX/bin/Rscript \
 			${OUTPUT}/${PREFIX}_reduce_overlapping_MGEs.R > /dev/null
 else
-        warn "Filtered results exist. Skipping..."
+        warn "Filtered results exist. Skipping"
 fi
 
 ###### PYTHON SCRIPT TO MERGE UPSTREAM AND DOWNSTREAM FLANKS
@@ -349,7 +349,7 @@ with Fasta('${RDCD_TMP}.query.upstream') as upstream, \
 " > ${OUTPUT}/${PREFIX}_merge_upstream_downstream.py
 
 if [ ! -f ${RDCD_TMP}.upstream ]; then
-        log "Retrieving MGE name information (this takes some time)"
+        log "Retrieving MGE name information (this might take some time)"
 
         while read line; do
                 grep -f <(echo $line | awk -v OFS="\t" '{ print $1, $2, $3 }') \
@@ -402,7 +402,7 @@ if [ ! -f ${RDCD_TMP}.upstream ]; then
 	$CONDA_PREFIX/bin/python ${OUTPUT}/${PREFIX}_merge_upstream_downstream.py 
 
 else
-	warn "Results already parsed. Skipping..."
+	warn "Results already parsed. Skipping"
 fi
 
 BLASTOUT=${RDCD_TMP}.blastn
@@ -417,7 +417,7 @@ if [ ! -f "${BLASTOUT}" ]; then
 		-out $BLASTOUT > ${OUTPUT}/tmp/blastn.err 2>&1
 	
 else
-	warn "Flanks mapping already done. Skipping..."
+	warn "Flanks mapping already done. Skipping"
 fi
 
 cp "${BLASTOUT}" "${OUTPUT}/${PREFIX}.flank_mapping"
@@ -544,7 +544,7 @@ if [ ! -f "${CLASSIFICATION}/${PREFIX}.reads_with_unfixed_MGEs.txt" ]; then
 		${OUTPUT}/${PREFIX}_get_reads_with_unfixed_MGEs.py \
 		> ${CLASSIFICATION}/reads_classification.info
 else
-	warn "Reads with unfixed MGEs already annotated. Skipping..."
+	warn "Reads with unfixed MGEs already annotated. Skipping"
 fi
 
 if [ ! -f "${OUTPUT}/${PREFIX}.reads_to_assembly.fastq" ]; then
@@ -558,20 +558,19 @@ if [ ! -f "${OUTPUT}/${PREFIX}.reads_to_assembly.fastq" ]; then
 	log "Removing temporary files"
 	rm -rf "${OUTPUT}"/tmp
 else
-	warn "File with reads to assembly already exists. Skipping..."
+	warn "File with reads to assembly already exists. Skipping"
 fi
 
 echo -e "\
 \033[0;32mAll Done!
 
-  • If you used MGEcatcher to improve your genome assembly, you might use the output 
-    file: ${PREFIX}.reads_to_assembly.fastq as input for the assembly.
+  • If you used MGEcatcher to improve your genome assembly, you might use the 
+    output file ${PREFIX}.reads_to_assembly.fastq as input for the assembly.
 
-  • If you used MGEcatcher to identify MGE transposition events, you might use the
-    output files stored in the ${PREFIX}_classification/ directory.
+  • If you used MGEcatcher to identify MGE transposition events, you might use
+    the output files stored in the ${PREFIX}_classification/ directory.
 
-\e[4mCitation\e[0m
-
+\e[4mCitation\033[0;32m
 If you make use of MGEcatcher in your research, please cite:
 
 FRANCESCHINI-SANTOS, V. H. Impacts of genome instability of Halobacterium salinarum 
