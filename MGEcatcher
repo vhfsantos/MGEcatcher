@@ -562,8 +562,7 @@ else
 fi
 
 echo -e "\
-\033[0;32mAll Done!
-
+\e[4mAll done\033[0;32m
   • If you used MGEcatcher to improve your genome assembly, you might use the 
     output file ${PREFIX}.reads_to_assembly.fastq as input for the assembly.
 
@@ -573,8 +572,9 @@ echo -e "\
 \e[4mCitation\033[0;32m
 If you make use of MGEcatcher in your research, please cite:
 
-FRANCESCHINI-SANTOS, V. H. Impacts of genome instability of Halobacterium salinarum 
-NRC-1 in differential gene expression analysis. Honours Thesis (Bachelor’s Degree 
-in Biological Sciences) – Faculdade de Filosofia, Ciências e Letras de Ribeirão 
-Preto, Universidade de São Paulo. Ribeirão Preto. 2021\033[0m
+FRANCESCHINI-SANTOS, V. H. (2021). Impacts of genome instability of 
+Halobacterium salinarum NRC-1 in differential gene expression analysis. 
+Honours Thesis (Bachelor’s Degree in Biological Sciences) - Faculty of 
+Philosophy, Sciences and Letters at Ribeirão Preto - University of São
+Paulo. Ribeirão Preto, Brazil\033[0m
 "
