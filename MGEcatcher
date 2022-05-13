@@ -75,12 +75,12 @@ check_deps
 HOME_DIR=${0%/*}
 # Log message function (normal text)
 log() {
-	printf '[ %(%y-%m-%d %H:%M:%S)T] '
-	printf "%*s\n" 61 "$1"
+	printf '[ %(%y-%m-%d %H:%M:%S)T ] '
+	printf "%*s\n" 60 "$1"
 }
 # Warning message function (yellow text)
 warn() {
-	echo -e "\033[1;33mWARNING:\n$1\033[0m"
+	printf "\033[1;33mWARNING:%*s\033[0m\n" 72 "$1"
 	}
 # "Done" message function
 DONEmsg() {
