@@ -293,7 +293,7 @@ pdf(paste0(reduced_data, \".viz.pdf\"))
 
 suppressMessages({
 autoplot(tmp, aes(fill=\"strand\"), layout = \"karyogram\") +
-        scale_fill_manual(values = \"\#d95f02\") +
+        scale_fill_manual(values = \"#d95f02\") +
         ggtitle(\"MGE mapping\", subtitle = \"First 10 mappings\") +
         theme(legend.position = \"none\", 
             axis.text.x = element_text(angle=90,vjust=0.5,hjust=0.5))
