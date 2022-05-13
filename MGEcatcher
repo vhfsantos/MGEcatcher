@@ -55,8 +55,13 @@ error_exit() {
         usage
 }
 
+# thanks, stackoverflow!
+join_path() {
+    echo "${1:+$1/}$2" | sed 's#//#/#g'
+}
+
 check_deps() {
-    for app in blastn bedtools; do
+    for app in blastn bedtools parallel; do
         command -v $CONDA_PREFIX/bin/$app >/dev/null 2>&1 || error_exit \
                 "ERROR: Cannot find ${app}. Make sure it is installed and in your PATH variable"
     done
@@ -167,7 +172,7 @@ printf "%s%*s\n" "MGE seed:" 73 "${MGE}"
 printf "%s%*s\n" "Output dir:" 71 "${OUTPUT}" 
 printf "%s%*s\n" "Threads:" 74 "${THREADS}"
 printf "%s%*s\n" "Prefix:" 75 "${BC}"
-
+echo "══════════════════════════════════════════════════════════════════════════════════"
 # make temp files
 mkdir -p ${OUTPUT}
 mkdir -p ${OUTPUT}/tmp/
@@ -179,7 +184,7 @@ FASTA=${OUTPUT}/tmp/${READ_BNAME%.*}.fasta
 if [ ! -f ${FASTA} ]; then
 	log "Converting input reads to fasta"
 	sed -n '1~4s/^@/>/p;2~4p' ${READS} > ${FASTA}
-	DONEmsg
+
 else
 	warn "File ${FASTA} already exists... skipping"
 fi
@@ -188,7 +193,7 @@ if [ ! -f ${FASTA}.nsq ]; then
 	log "Creating database for BLAST"
 	$CONDA_PREFIX/bin/makeblastdb -in ${FASTA} \
 		-dbtype nucl > /dev/null 2> /dev/null
-	DONEmsg
+
 else
 	warn "Blast database already exists... skipping"
 fi
@@ -203,11 +208,111 @@ if [ ! -f "${MAPPINGOUT}" ]; then
 		-outfmt "7 qacc sacc sstart send qlen slen evalue" \
 		-task blastn -num_threads ${THREADS} \
 		-out $MAPPINGOUT > ${OUTPUT}/tmp/MGE-mapping.err 2>&1
-		DONEmsg
+	
 else
 	warn "MGE-mapping already done... skipping"
 fi
 
+#### RSCRIPT TO REDUCE OVERLAPS
+echo "
+#!/usr/bin/env Rscript
+options(warn=-1)
+args = commandArgs(trailingOnly=T)
+
+suppressPackageStartupMessages({
+    	require(GenomicRanges)
+    	require(IRanges)
+    	require(ggbio)
+    	require(dplyr)
+})
+
+# writting functions to be called in apply furtherly
+
+GetMGEName = function(x){
+        paste(x[2],
+        x[5],
+        strsplit(x[1],split = \"::\")[[1]][1],
+        x[8],
+        sep=\"_\")
+}
+
+GetLen4reduced = function(x){
+    	sqname = x[1]
+    	x[6] = seqlen[sqname]
+}
+
+GetReadName = function(x){
+    	read = x[1]
+    	id = x[7]
+    	paste(read,id,sep=\"_\")
+}
+
+filtered_data = args[1]
+reduced_data = args[2]
+
+df = read.table(filtered_data)
+df\$row = rownames(df)
+
+df\$MGE = apply(df,
+        FUN = GetMGEName,
+        MARGIN = 1)
+
+df = df[,c(2,3,4,6,9)]
+colnames(df) = c(\"seqnames\", \"start\", \"end\", \"seqlength\", \"MGE\")
+df\$strand = \"+\"
+toPlot = head(df,10)
+
+gr = makeGRangesFromDataFrame(df,
+                              seqnames.field=\"seqnames\",
+                              start.field=\"start\",
+                              end.field=\"end\",
+                              strand.field=\"strand\")
+
+tmp = makeGRangesFromDataFrame(toPlot,
+                              seqnames.field=\"seqnames\",
+                              start.field=\"start\",
+                              end.field=\"end\",
+                              strand.field=\"strand\")
+
+dfnames = toPlot[,c(1,4)]
+dfnames = distinct(dfnames)
+seqlen = dfnames\$seqlength
+names(seqlen) = dfnames\$seqnames
+tmp = GRanges(tmp, seqlengths = seqlen)
+
+dfnames = df[,c(1,4)]
+dfnames = distinct(dfnames)
+seqlen = dfnames\$seqlength
+names(seqlen) = dfnames\$seqnames
+toReduce = GRanges(gr, seqlengths = seqlen)
+
+Reduced = reduce(toReduce)
+tmp = reduce(tmp)
+
+pdf(paste0(reduced_data, \".viz.pdf\"))
+
+suppressMessages({
+autoplot(tmp, aes(fill=\"strand\"), layout = \"karyogram\") +
+        scale_fill_manual(values = \"\#d95f02\") +
+        ggtitle(\"MGE mapping\", subtitle = \"First 10 mappings\") +
+        theme(legend.position = \"none\", 
+            axis.text.x = element_text(angle=90,vjust=0.5,hjust=0.5))
+})
+
+final_df = as.data.frame(Reduced) 
+
+final_df\$seqlen = apply(final_df, 
+        FUN = GetLen4reduced,
+        MARGIN = 1)
+
+final_df = final_df[,c(1,2,3,6)]
+
+write.table(final_df, reduced_data,
+        quote=F, row.names = F, col.names = F)
+
+dev.off()
+" > ${OUTPUT}/ReduceOverlappingMGEs.R
+exit
 REDUCED=${MAPPINGOUT}.filtered.reduced.txt
 if [ ! -f ${REDUCED} ]; then
         log "Filtering BLAST results"
@@ -252,7 +357,7 @@ if [ ! -f ${REDUCED}.upstream ]; then
 		awk 'BEGIN{OFS="\t"}{if($4>$6-150 && $3<150){print$0}}' \
 		> ${REDUCED}.anything
 
-	DONEmsg
+
 	# we have hits that can easily extract the 300bp window
 
 	grep -v "#" ${REDUCED}.mge | \
@@ -282,7 +387,7 @@ if [ ! -f ${REDUCED}.upstream ]; then
 		-u ${REDUCED}.query.upstream \
 		-d ${REDUCED}.query.downstream \
 		-o ${REDUCED}.query.merged
-	DONEmsg
+
 else
 	warn "Results already parsed... skipping"
 fi
@@ -297,7 +402,7 @@ if [ ! -f "${BLASTOUT}" ]; then
 		-outfmt "7 qacc sacc sstart send length qlen slen evalue" \
 		-task megablast -num_threads ${THREADS} -strand plus \
 		-out $BLASTOUT > ${OUTPUT}/tmp/blastn.err 2>&1
-		DONEmsg
+	
 else
 	warn "Flanks mapping already done... skipping"
 fi
@@ -313,10 +418,10 @@ if [ ! -f "${CLASSIFICATION}/${BC}.optionalMGEs.txt" ]; then
 		--input "${BLASTOUT}" \
 		--prefix "${BC}" \
 		--output "${CLASSIFICATION}"
-	DONEmsg
+
 	log "Removing temporary files"
 	rm -rf "${OUTPUT}"/tmp
-	DONEmsg
+
 else
 	warn "Classification already done... skipping"
 fi
