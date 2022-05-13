@@ -562,7 +562,7 @@ else
 fi
 
 echo -e "\
-\e[4mAll done\033[0;32m
+\033[0;32m\e[4mAll done\033[0;32m
   • If you used MGEcatcher to improve your genome assembly, you might use the 
     output file ${PREFIX}.reads_to_assembly.fastq as input for the assembly.
 
