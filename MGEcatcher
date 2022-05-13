@@ -87,7 +87,7 @@ DONEmsg() {
 THREADS=10
 # option strings
 SHORT=h
-LONG=help,reads:,prefix:,mge-seed:,output:,threads:
+LONG=help,reads:,prefix:,mge_seed:,output:,threads:
 
 # read the options
 OPTS=$(getopt --options $SHORT --long $LONG --name "$0" -- "$@")
@@ -106,7 +106,7 @@ while true ; do
       THREADS="$2"
       shift 2
 	 ;;
-    --mge-seed )
+    --mge_seed )
        MGE="$2"
       shift 2
 	 ;;
