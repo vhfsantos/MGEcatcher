@@ -553,7 +553,7 @@ if [ ! -f "${OUTPUT}/${PREFIX}.reads_to_assembly.fastq" ]; then
 	filterbyname.sh in="${READS}" \
         names="${CLASSIFICATION}/${PREFIX}.unfixed_MGEs.readnames" \
         out="${OUTPUT}/${PREFIX}.reads_to_assembly.fastq" \
-        include=f qin=33
+        include=f qin=33 > /dev/null 2>&1
 
 	log "Removing temporary files"
 	rm -rf "${OUTPUT}"/tmp
@@ -561,7 +561,7 @@ else
 	warn "File with reads to assembly already exists. Skipping..."
 fi
 
-echo "\
+echo -e "\
 \033[0;32mAll Done!
 
   • If you used MGEcatcher to improve your genome assembly, you might use the output 
@@ -570,10 +570,12 @@ echo "\
   • If you used MGEcatcher to identify MGE transposition events, you might use the
     output files stored in the ${PREFIX}_classification/ directory.
 
-  • If you make use of MGEcatcher in your research, please cite:
-    FRANCESCHINI-SANTOS, V. H. Impacts of genome instability of Halobacterium 
-	salinarum NRC-1 in differential gene expression analysis. Honours Thesis 
-	(Bachelor’s Degree in Biological Sciences) – Faculdade de Filosofia, 
-	Ciências e Letras de Ribeirão Preto, Universidade de São Paulo. 
-	Ribeirão Preto. 2021
+\e[4mCitation\e[0m
+
+If you make use of MGEcatcher in your research, please cite:
+
+FRANCESCHINI-SANTOS, V. H. Impacts of genome instability of Halobacterium salinarum 
+NRC-1 in differential gene expression analysis. Honours Thesis (Bachelor’s Degree 
+in Biological Sciences) – Faculdade de Filosofia, Ciências e Letras de Ribeirão 
+Preto, Universidade de São Paulo. Ribeirão Preto. 2021\033[0m
 "
