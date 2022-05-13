@@ -247,8 +247,8 @@ GetReadName = function(x){
     	paste(read,id,sep=\"_\")
 }
 
-filtered_data = args[1]
-reduced_data = args[2]
+filtered_data = \"${MAPPINGOUT}.filtered\"
+reduced_data =  \"${OUTPUT}/${PREFIX}.MGE_mapping\"
 
 df = read.table(filtered_data)
 df\$row = rownames(df)
@@ -311,9 +311,10 @@ write.table(final_df, reduced_data,
         quote=F, row.names = F, col.names = F)
 
 dev.off()
-" > ${OUTPUT}/ReduceOverlappingMGEs.R
-exit
-REDUCED=${MAPPINGOUT}.filtered.reduced.txt
+" > ${OUTPUT}/${PREFIX}_reduce_overlapping_MGEs.R
+
+REDUCED=${OUTPUT}/${PREFIX}.MGE_mapping
+RDCD_TMP=${OUTPUT}/tmp/MGE_mapping.reduced
 if [ ! -f ${REDUCED} ]; then
         log "Filtering BLAST results"
         # First step, select only those which size is approx. equal to MGE
@@ -323,81 +324,92 @@ if [ ! -f ${REDUCED} ]; then
         	> ${MAPPINGOUT}.filtered
         # Second, apply the reduce function to remove overlapping
         # alignments
-        $CONDA_PREFIX/bin/Rscript "$HOME_DIR"/ReduceOverlappingMGEs.R \
-                ${MAPPINGOUT}.filtered \
-        > /dev/null
-        cp ${MAPPINGOUT}.filtered ${OUTPUT}/${BC}.reduced.txt
-        log "Done"
+        $CONDA_PREFIX/bin/Rscript \
+			${OUTPUT}/${PREFIX}_reduce_overlapping_MGEs.R > /dev/null
 else
         warn "Filtered results exist... skipping"
 fi
 
-if [ ! -f ${REDUCED}.upstream ]; then
+###### PYTHON SCRIPT TO MERGE UPSTREAM AND DOWNSTREAM FLANKS
+
+echo "
+#!/usr/bin/env python
+
+from pyfaidx import Fasta
+
+with Fasta('${RDCD_TMP}.query.upstream') as upstream, \
+    Fasta('${RDCD_TMP}.query.downstream') as downstream, \
+    open('${OUTPUT}/${PREFIX}_flanks_query.fa','w') as result:
+    for a,b in zip(upstream, downstream):
+        header = a.name.split(\"::\")[0]
+        result.write('>' + header)
+        result.write('\n'+str(a))
+        result.write(str(b)+'\n')
+" > ${OUTPUT}/${PREFIX}_merge_upstream_downstream.py
+
+if [ ! -f ${RDCD_TMP}.upstream ]; then
         log "Retrieving MGE name information (this takes some time)"
 
         while read line; do
                 grep -f <(echo $line | awk -v OFS="\t" '{ print $1, $2, $3 }') \
                 ${MAPPINGOUT} | head -n1
-        done < ${REDUCED} > ${REDUCED}.mge
+        done < ${REDUCED} > ${RDCD_TMP}.mge
 
 	log "Parsing BLAST results"
 
 	#a. hits for which we cannot extract 150bp upstreeam the MGE"
-	grep -v "#" ${REDUCED}.mge | \
+	grep -v "#" ${RDCD_TMP}.mge | \
 		awk 'BEGIN{OFS="\t"}{if($3<150){print$0}}' \
-		> ${REDUCED}.upstream
+		> ${RDCD_TMP}.upstream
 
         #b. hits for which we cannot extract 150bp downstream the MGE (read ends before it)"
-	grep -v "#" ${REDUCED}.mge | \
+	grep -v "#" ${RDCD_TMP}.mge | \
 		awk 'BEGIN{OFS="\t"}{if($4>$6-150){print$0}}' \
-		> ${REDUCED}.downstream
+		> ${RDCD_TMP}.downstream
 
 	#writing hits that cannot be use (both 1 and 2 are true)"
-	grep -v "#" ${REDUCED}.mge | \
+	grep -v "#" ${RDCD_TMP}.mge | \
 		awk 'BEGIN{OFS="\t"}{if($4>$6-150 && $3<150){print$0}}' \
-		> ${REDUCED}.anything
+		> ${RDCD_TMP}.anything
 
 
 	# we have hits that can easily extract the 300bp window
 
-	grep -v "#" ${REDUCED}.mge | \
-		grep -v -f ${REDUCED}.upstream | \
-		grep -v -f ${REDUCED}.downstream \
-		> ${REDUCED}.extract
+	grep -v "#" ${RDCD_TMP}.mge | \
+		grep -v -f ${RDCD_TMP}.upstream | \
+		grep -v -f ${RDCD_TMP}.downstream \
+		> ${RDCD_TMP}.extract
 
 
-	# here I am writting the query files. I editted the query name so
+	# here I am writting the query dfiles. I editted the query name so
 	# that it contains: (i) the name of the read the MGE was mapped
 	# (ii) the MGE size, and (iii) the MGE name. These three fields are
 	# separated by '_' (see the last awk field: $2_$5_$1)
 
 	log "Extracting 300bp flank sequences"
 	$CONDA_PREFIX/bin/bedtools getfasta -fi ${FASTA} -name -bed <(cat \
-		${REDUCED}.extract | \
+		${RDCD_TMP}.extract | \
 		awk 'BEGIN{OFS="\t"}{ print $2, $3-150, $3, $2"_"$5"_"$1}') \
-		> ${REDUCED}.query.upstream 2> /dev/null
+		> ${RDCD_TMP}.query.upstream 2> /dev/null
 
 	#writting downstream flank sequences"
 	$CONDA_PREFIX/bin/bedtools getfasta -fi ${FASTA} -name -bed <(cat \
-		${REDUCED}.extract | \
+		${RDCD_TMP}.extract | \
 		awk 'BEGIN{OFS="\t"}{ print $2, $4, $4+150, $2"_"$5"_"$1}') \
-		> ${REDUCED}.query.downstream
+		> ${RDCD_TMP}.query.downstream
 
-	$CONDA_PREFIX/bin/python "$HOME_DIR"/MergeUpstreamDownstream.py \
-		-u ${REDUCED}.query.upstream \
-		-d ${REDUCED}.query.downstream \
-		-o ${REDUCED}.query.merged
+	$CONDA_PREFIX/bin/python ${OUTPUT}/${PREFIX}_merge_upstream_downstream.py 
 
 else
 	warn "Results already parsed... skipping"
 fi
 
-cp ${REDUCED}.query.merged ${OUTPUT}/${BC}-flanks-query.fa
-BLASTOUT=${REDUCED}.blastn
+BLASTOUT=${RDCD_TMP}.blastn
 
 if [ ! -f "${BLASTOUT}" ]; then
         log "Mapping flanks with BLASTn"
-        $CONDA_PREFIX/bin/blastn -db ${FASTA} -query ${REDUCED}.query.merged \
+        $CONDA_PREFIX/bin/blastn -db ${FASTA} \
+		-query ${OUTPUT}/${PREFIX}_flanks_query.fa \
 		-evalue 1e-03 \
 		-outfmt "7 qacc sacc sstart send length qlen slen evalue" \
 		-task megablast -num_threads ${THREADS} -strand plus \
@@ -407,17 +419,127 @@ else
 	warn "Flanks mapping already done... skipping"
 fi
 
-cp "${BLASTOUT}" "${OUTPUT}/${BC}-flanks-results.outfmt7"
-CLASSIFICATION="${OUTPUT}/${BC}_CLASSIFICATION/"
+cp "${BLASTOUT}" "${OUTPUT}/${BC}.flank_mapping"
+CLASSIFICATION="${OUTPUT}/${BC}_classification/"
 
 mkdir -p "${CLASSIFICATION}"
 
-if [ ! -f "${CLASSIFICATION}/${BC}.optionalMGEs.txt" ]; then
+
+##### PYTHON SCRIPT TO GET READS WITH UNFIXED MGES
+
+echo "
+#!/usr/bin/env python
+
+import os
+import argparse
+
+# this function returns a dictionary with keys being the query and subject name
+# pasted, separated by '...'. The values are the start and end of the 
+# alignment, the size and name of the MGE that originated the fragment and the 
+# size of the subjected read.
+
+# I constructed this in a way that secondary alignments (i.e., alignments 
+# sharing both query and subject names) are appended as a list of dictionaries.
+
+def write_feat_dic():
+    feat_dic = dict()
+    with open('${BLASTOUT}', 'r') as blast:
+        for line in blast.readlines():
+            if line.startswith('#'):
+                continue
+            row = line.strip().split('\t')
+            key = row[0]+\"...\"+row[1]
+            if key not in feat_dic.keys():
+                feat_dic[key] = [{'start': row[2],
+                                'end': row[3],
+                                'MGE_size': (int(row[0].split('_')[1])),
+                                'read_size': row[6],
+                                'MGE_name': row[0].split('_')[2] }]
+            else:
+                feat_dic[key].append({'start': row[2],
+                                'end': row[3],
+                                'MGE_size': (int(row[0].split('_')[1])),
+                                'read_size': row[6],
+                                'MGE_name': row[0].split('_')[2] })
+    return feat_dic
+
+# This function searches for alignments supporting the optional state of the 
+# MGEs and writes the name of the subjected read. Note that I added here an 
+# important step that remove cases in which the subjected and queried reads are 
+# the same. So if a MGE aligned in the read X produced a fragment that aligned 
+# on the read X supporting the optional state of this MGE, this will not be 
+# considered. We only want cases in which the queried and subjected reads are 
+# different. 
+
+def get_unfixed_mges(feat_dic):
+    reads_to_remove = []
+    with open('${CLASSIFICATION}/${PREFIX}.unfixed_MGEs.readnames','w') as FILEoutRN:
+        with open('${CLASSIFICATION}/${PREFIX}.unfixed_MGEs.txt','w') as FILEout:
+            # writting header of plottable file
+            FILEout.write('queryname\tseqnames\tstart\tend\tseqlength\tMGE\n')
+            for k,v in feat_dic.items():
+                # checking if there is only one alignment in this read
+                if len(v) == 1:
+                    query_read_name = k.split("_")[0]
+                    end = int(v[0]['end'])
+                    start = int(v[0]['start'])
+                    gap_size = int(start - end)
+                    read_size = int(v[0]['read_size'])
+                    if (abs(gap_size) >= 300 * 0.9 
+                        and abs(gap_size) <= 300 * 1.1):
+                        read_name = k.split('...')[1]
+                        # check if subj and query reads are not the same
+                        if query_read_name == read_name:
+                            print('!!! QUERY AND SUBJECT ARE THE SAME, SKIPPING!!!')
+                        else:
+                            mge_name = v[0]['MGE_name']
+                            print('flank of {} in:\n\t{}\nfully mapped in:\n\t{}\n\t({} will be removed)'.format(mge_name,query_read_name, read_name, query_read_name))
+                            reads_to_remove.append(query_read_name)
+                            # writting file plottable with GRanges
+                            FILEout.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(query_read_name, read_name,start,end,read_size,mge_name))
+                            FILEoutRN.write('{}\n'.format(query_read_name))
+    n_of_reads_to_remove = len(set(reads_to_remove))
+    return(n_of_reads_to_remove)
+                            
+def get_fixed_mges(feat_dic):
+    with open('${CLASSIFICATION}/${PREFIX}.fixed_MGEs.txt','w') as FILEout:
+        with open('${CLASSIFICATION}/${PREFIX}.fixed_MGEs.readnames','w') as FILEoutRN:
+            # writting header of plottable file
+            FILEout.write('queryname\tseqnames\tstart\tend\tseqlength\tMGE\n')
+            for k,v in feat_dic.items():
+                if len(v) == 2:
+                    MGEsize = int(v[0]['MGE_size'])
+                    mge_name = v[0]['MGE_name']
+                    read_name = k.split('...')[1]
+                    read_size = int(v[0]['read_size'])
+                    startPLOT = v[0]['start']
+                    end = int(v[0]['end'])
+                    start = int(v[1]['start'])
+                    endPLOT = v[1]['end']
+                    gap_size = int(start - end)
+                    if (abs(gap_size) >= MGEsize * 0.9 
+                        and abs(gap_size) <= MGEsize * 1.1):
+                        query_read_name = k.split('...')[0].split("_")[0]
+                        mge_name = v[0]['MGE_name']
+                        # writting file plottable with GRanges
+                        # first alignment...
+                        FILEout.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(query_read_name, read_name,startPLOT,end,read_size,mge_name))
+                        # second alignment...
+                        FILEout.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(query_read_name, read_name,start,endPLOT,read_size,mge_name))
+                        FILEoutRN.write('{}\n'.format(query_read_name))
+
+def main():
+	feat_dic = write_feat_dic()
+    n_of_reads_to_remove = get_unfixed_mges(feat_dic)
+    get_fixed_mges(feat_dic)
+    
+if __name__ == \"__main__\":
+    main()
+" > ${OUTPUT}/${PREFIX}_get_reads_with_unfixed_MGEs.py
+
+if [ ! -f "${CLASSIFICATION}/${BC}.reads_with_unfixed_MGEs.txt" ]; then
 	log "Annotating reads with unfixed MGEs"
-	$CONDA_PREFIX/bin/python "$HOME_DIR"/scripts/GetNonFixedReads.py \
-		--input "${BLASTOUT}" \
-		--prefix "${BC}" \
-		--output "${CLASSIFICATION}"
+	$CONDA_PREFIX/bin/python ${OUTPUT}/${PREFIX}_get_reads_with_unfixed_MGEs.py
 
 	log "Removing temporary files"
 	rm -rf "${OUTPUT}"/tmp
