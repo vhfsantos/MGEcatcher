@@ -217,11 +217,15 @@ fi
 echo "
 #!/usr/bin/env Rscript
 
-library(GenomicRanges)
-library(IRanges)
-library(ggbio)
-library(dplyr)
+options(warn=-1)
+args = commandArgs(trailingOnly=T)
 
+suppressPackageStartupMessages({
+	library(GenomicRanges)
+	library(IRanges)
+	library(ggbio)
+	library(dplyr)
+})
 
 # writting functions to be called in apply furtherly
 
