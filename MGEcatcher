@@ -61,7 +61,7 @@ join_path() {
 }
 
 check_deps() {
-    for app in blastn bedtools parallel; do
+    for app in blastn bedtools; do
         command -v $CONDA_PREFIX/bin/$app >/dev/null 2>&1 || error_exit \
                 "ERROR: Cannot find ${app}. Make sure it is installed and in your PATH variable"
     done
