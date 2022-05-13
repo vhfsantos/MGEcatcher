@@ -120,7 +120,7 @@ while true ; do
       shift 2
 	 ;;
     --prefix )
-      BC="$2"
+      PREFIX="$2"
      shift 2
 	 ;;
     -- )
@@ -136,7 +136,7 @@ done
 
 declare -A array # associative arrays need to be declared!
 array=( [--reads]="${READS}" [--mge_seed]="${MGE}" \
-		[--output]="${OUTPUT}" [--prefix]="${BC}" \
+		[--output]="${OUTPUT}" [--prefix]="${PREFIX}" \
 		[--threads]="${THREADS}")
 
 for idx in "${!array[@]}"; do
@@ -171,7 +171,7 @@ printf "%s%*s\n" "Reads:" 76 "${READS}"
 printf "%s%*s\n" "MGE seed:" 73 "${MGE}"
 printf "%s%*s\n" "Output dir:" 71 "${OUTPUT}" 
 printf "%s%*s\n" "Threads:" 74 "${THREADS}"
-printf "%s%*s\n" "Prefix:" 75 "${BC}"
+printf "%s%*s\n" "Prefix:" 75 "${PREFIX}"
 echo "══════════════════════════════════════════════════════════════════════════════════"
 # make temp files
 mkdir -p ${OUTPUT}
@@ -322,7 +322,7 @@ if [ ! -f ${REDUCED} ]; then
         # Second, apply the reduce function to remove overlapping
         # alignments
         $CONDA_PREFIX/bin/Rscript \
-			${OUTPUT}/${PREFIX}_reduce_overlapping_MGEs.R
+			${OUTPUT}/${PREFIX}_reduce_overlapping_MGEs.R > /dev/null
 else
         warn "Filtered results exist... skipping"
 fi
@@ -416,8 +416,8 @@ else
 	warn "Flanks mapping already done... skipping"
 fi
 
-cp "${BLASTOUT}" "${OUTPUT}/${BC}.flank_mapping"
-CLASSIFICATION="${OUTPUT}/${BC}_classification/"
+cp "${BLASTOUT}" "${OUTPUT}/${PREFIX}.flank_mapping"
+CLASSIFICATION="${OUTPUT}/${PREFIX}_classification/"
 
 mkdir -p "${CLASSIFICATION}"
 
@@ -495,9 +495,7 @@ def get_unfixed_mges(feat_dic):
                             # writting file plottable with GRanges
                             FILEout.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(query_read_name, read_name,start,end,read_size,mge_name))
                             FILEoutRN.write('{}\n'.format(query_read_name))
-    n_of_reads_to_remove = len(set(reads_to_remove))
-    return(n_of_reads_to_remove)
-                            
+
 def get_fixed_mges(feat_dic):
     with open('${CLASSIFICATION}/${PREFIX}.fixed_MGEs.txt','w') as FILEout:
         with open('${CLASSIFICATION}/${PREFIX}.fixed_MGEs.readnames','w') as FILEoutRN:
@@ -526,15 +524,15 @@ def get_fixed_mges(feat_dic):
                         FILEoutRN.write('{}\n'.format(query_read_name))
 
 def main():
-	feat_dic = write_feat_dic()
-    n_of_reads_to_remove = get_unfixed_mges(feat_dic)
+    feat_dic = write_feat_dic()
+    get_unfixed_mges(feat_dic)
     get_fixed_mges(feat_dic)
-    
+
 if __name__ == \"__main__\":
     main()
 " > ${OUTPUT}/${PREFIX}_get_reads_with_unfixed_MGEs.py
 
-if [ ! -f "${CLASSIFICATION}/${BC}.reads_with_unfixed_MGEs.txt" ]; then
+if [ ! -f "${CLASSIFICATION}/${PREFIX}.reads_with_unfixed_MGEs.txt" ]; then
 	log "Annotating reads with unfixed MGEs"
 	$CONDA_PREFIX/bin/python ${OUTPUT}/${PREFIX}_get_reads_with_unfixed_MGEs.py
 
@@ -547,6 +545,6 @@ fi
 
 #bash bbmap/filterbyname.sh \
 #        in="${READS}" \
-#        names="${CLASSIFICATION}/${BC}.optionalMGEs-readnames.txt" \
-#        out="${OUTPUT}/${BC}-to-assembly.fastq" \
+#        names="${CLASSIFICATION}/${PREFIX}.optionalMGEs-readnames.txt" \
+#        out="${OUTPUT}/${PREFIX}-to-assembly.fastq" \
 #        include=f qin=33
