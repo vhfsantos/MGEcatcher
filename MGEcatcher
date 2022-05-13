@@ -473,6 +473,8 @@ def write_feat_dic():
 # different. 
 
 def get_unfixed_mges(feat_dic):
+	print('#mge_name\tquery_read_name\tread_name\tquery_read_name')
+	print('#INTERPRETATION:\n<flank of this MGE>\t<generated from this read>\t<was mapped with no gaps in this read>\t<this read will be removed>')
     reads_to_remove = []
     with open('${CLASSIFICATION}/${PREFIX}.unfixed_MGEs.readnames','w') as FILEoutRN:
         with open('${CLASSIFICATION}/${PREFIX}.unfixed_MGEs.txt','w') as FILEout:
@@ -494,7 +496,7 @@ def get_unfixed_mges(feat_dic):
                             print('!!! QUERY AND SUBJECT ARE THE SAME, SKIPPING!!!')
                         else:
                             mge_name = v[0]['MGE_name']
-                            print('flank of {} in:\n\t{}\nfully mapped in:\n\t{}\n\t({} will be removed)'.format(mge_name,query_read_name, read_name, query_read_name))
+                            print('{}\t{}\t{}\t{}'.format(mge_name,query_read_name, read_name, query_read_name))
                             reads_to_remove.append(query_read_name)
                             # writting file plottable with GRanges
                             FILEout.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(query_read_name, read_name,start,end,read_size,mge_name))
@@ -538,7 +540,9 @@ if __name__ == \"__main__\":
 
 if [ ! -f "${CLASSIFICATION}/${PREFIX}.reads_with_unfixed_MGEs.txt" ]; then
 	log "Annotating reads with unfixed MGEs"
-	$CONDA_PREFIX/bin/python ${OUTPUT}/${PREFIX}_get_reads_with_unfixed_MGEs.py
+	$CONDA_PREFIX/bin/python \
+		${OUTPUT}/${PREFIX}_get_reads_with_unfixed_MGEs.py \
+		> ${CLASSIFICATION}/reads_classification.info
 
 	log "Removing temporary files"
 	rm -rf "${OUTPUT}"/tmp
