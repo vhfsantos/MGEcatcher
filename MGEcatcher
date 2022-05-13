@@ -31,15 +31,16 @@ MGEcatcher --reads <reads.fq> --mge_seed <mge.fa> [--threads <N>] \\
            --output <path/to/output/> --prefix <BC01>
 
 \e[4mRequired arguments\e[0m:
+     --reads        Fastq file for basecalled reads to be used as subject
 
---reads         Fastq file for basecalled reads to be used as subject
---mge_seed      Fasta file containing MGE sequences to be used as query
---output        Output dir name; will be created if does not exist
---prefix        Barcode identifier (ex.: BC01)
+     --mge_seed     Fasta file containing MGE sequences to be used as query
+
+     --output       Output dir name; will be created if does not exist
+
+     --prefix       Barcode identifier (ex.: BC01)
 
 \e[4mOptional arguments\e[0m:
-
---threads      Number of threads (default: 10)
+     --threads      Number of threads (default: 10)
 
 "
 echo -e "$USAGE"
@@ -61,6 +62,7 @@ check_deps() {
     done
 }
 
+
 VERSION=0.2
 check_deps
 
@@ -68,22 +70,24 @@ check_deps
 HOME_DIR=${0%/*}
 # Log message function (normal text)
 log() {
-	echo [$(date +%Y-%m-%d" "%H:%M:%S)] $1
+	printf '[ %(%y-%m-%d %H:%M:%S)T] '
+	printf "%*s\n" 61 "$1"
 }
 # Warning message function (yellow text)
 warn() {
-	echo -e "\033[1;33m"[$(date +%Y-%m-%d" "%H:%M:%S)] $1"\033[0m"
+	echo -e "\033[1;33m"$1"\033[0m"
 	}
 # "Done" message function
 DONEmsg() {
-	echo -e [$(date +%Y-%m-%d" "%H:%M:%S)] Done!
+	printf '[ %(%y-%m-%d %H:%M:%S)T] '
+	printf "%*s\n" 61 "Done!"
 }
 # parse args
 
 THREADS=10
 # option strings
 SHORT=h
-LONG=help,reads:,prefix:,mge_seed:,output:,threads:
+LONG=help,reads:,prefix:,mge-seed:,output:,threads:
 
 # read the options
 OPTS=$(getopt --options $SHORT --long $LONG --name "$0" -- "$@")
@@ -95,20 +99,25 @@ while true ; do
       usage
       ;;
     --reads )
-      READS=${OPTARG}
-      ;;
+      READS="$2"
+      shift 2
+	 ;;
     --threads )
-      THREADS=${OPTARG}
-      ;;
-    --mge_seed )
-       MGE=${OPTARG}
-      ;;
+      THREADS="$2"
+      shift 2
+	 ;;
+    --mge-seed )
+       MGE="$2"
+      shift 2
+	 ;;
     --output )
-       OUTPUT=${OPTARG}
-      ;;
+       OUTPUT="$2"
+      shift 2
+	 ;;
     --prefix )
-      BC=${OPTARG}
-     ;;
+      BC="$2"
+     shift 2
+	 ;;
     -- )
      shift
      break
@@ -119,45 +128,45 @@ while true ; do
  esac
 done
 
+
 declare -A array # associative arrays need to be declared!
-array=( [--reads]="${READS}" [--mge_seed]="${MGE}" [--output]="${OUTPUT}" [--prefix]="${BC}" )
+array=( [--reads]="${READS}" [--mge_seed]="${MGE}" \
+		[--output]="${OUTPUT}" [--prefix]="${BC}" \
+		[--threads]="${THREADS}")
 
 for idx in "${!array[@]}"; do
 	if [[ ! ${array[$idx]} ]]; then
-	echo "ERROR: $idx argument must be supplied. exiting..."
+	echo "ERROR: $idx argument must be supplied. ${array[$idx]} exiting..."
 	usage
 	fi
 done
 
 
 echo "
-                              ███╗   ███╗ ██████╗ ███████╗             
-                              ████╗ ████║██╔════╝ ██╔════╝             
-                              ██╔████╔██║██║  ███╗█████╗               
-                              ██║╚██╔╝██║██║   ██║██╔══╝               
-                              ██║ ╚═╝ ██║╚██████╔╝███████╗             
-                              ╚═╝     ╚═╝ ╚═════╝ ╚══════╝             
-               ██████╗ █████╗ ████████╗ ██████╗██╗  ██╗███████╗██████╗ 
-              ██╔════╝██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔════╝██╔══██╗
-              ██║     ███████║   ██║   ██║     ███████║█████╗  ██████╔╝
-              ██║     ██╔══██║   ██║   ██║     ██╔══██║██╔══╝  ██╔══██╗
-              ╚██████╗██║  ██║   ██║   ╚██████╗██║  ██║███████╗██║  ██║
-               ╚═════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+                             ███╗   ███╗ ██████╗ ███████╗             
+                             ████╗ ████║██╔════╝ ██╔════╝             
+                             ██╔████╔██║██║  ███╗█████╗               
+                             ██║╚██╔╝██║██║   ██║██╔══╝               
+                             ██║ ╚═╝ ██║╚██████╔╝███████╗             
+                             ╚═╝     ╚═╝ ╚═════╝ ╚══════╝             
+              ██████╗ █████╗ ████████╗ ██████╗██╗  ██╗███████╗██████╗ 
+             ██╔════╝██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔════╝██╔══██╗
+             ██║     ███████║   ██║   ██║     ███████║█████╗  ██████╔╝
+             ██║     ██╔══██║   ██║   ██║     ██╔══██║██╔══╝  ██╔══██╗
+             ╚██████╗██║  ██║   ██║   ╚██████╗██║  ██║███████╗██║  ██║
+              ╚═════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 
 ══════════════════════════════════════════════════════════════════════════════════
-                 Automated pipeline to identify mobile genetic elements 
+                Automated pipeline to identify mobile genetic elements 
                           in long read DNA sequencing data
 ----------------------------------------------------------------------------------
-                          by: Vinícius Franceschini-Santos, 2022
+                       by: Vinícius Franceschini-Santos, 2021
 ══════════════════════════════════════════════════════════════════════════════════"
-echo "
-Reads:|${READS}
-MGE seed:|${MGE}
-Output:|${OUTPUT}
-Threads:|${THREADS}
-Prefix:|${BC}" | column -t -s "|"
-
-exit
+printf "%s%*s\n" "Reads:" 76 "${READS}"
+printf "%s%*s\n" "MGE seed:" 73 "${MGE}"
+printf "%s%*s\n" "Output dir:" 71 "${OUTPUT}" 
+printf "%s%*s\n" "Threads:" 74 "${THREADS}"
+printf "%s%*s\n" "Prefix:" 75 "${BC}"
 
 # make temp files
 mkdir -p ${OUTPUT}
@@ -168,15 +177,15 @@ READ_BNAME=`basename ${READS}`
 FASTA=${OUTPUT}/tmp/${READ_BNAME%.*}.fasta
 
 if [ ! -f ${FASTA} ]; then
-	log "Converting fastq to fasta..."
+	log "Converting input reads to fasta"
 	sed -n '1~4s/^@/>/p;2~4p' ${READS} > ${FASTA}
 	DONEmsg
 else
-	warn "file ${FASTA} already exists... skipping"
+	warn "File ${FASTA} already exists... skipping"
 fi
 
 if [ ! -f ${FASTA}.nsq ]; then
-	log "Creating database for BLAST..."
+	log "Creating database for BLAST"
 	$CONDA_PREFIX/bin/makeblastdb -in ${FASTA} \
 		-dbtype nucl > /dev/null 2> /dev/null
 	DONEmsg
@@ -187,7 +196,7 @@ fi
 MAPPINGOUT=${OUTPUT}/tmp/${READ_BNAME%.*}.MGE-mapping
 
 if [ ! -f "${MAPPINGOUT}" ]; then
-        log "Mapping MGEs with ${MGE}"
+        log "Mapping MGEs with $(basename ${MGE})"
         $CONDA_PREFIX/bin/blastn -db ${FASTA} -query ${MGE} \
 		-strand plus \
 		-evalue 1e-03 \
@@ -201,7 +210,7 @@ fi
 
 REDUCED=${MAPPINGOUT}.filtered.reduced.txt
 if [ ! -f ${REDUCED} ]; then
-        log "Filtering results"
+        log "Filtering BLAST results"
         # First step, select only those which size is approx. equal to MGE
         # length (i.e., more or less 10% of MGE size)
         cat $MAPPINGOUT | \
@@ -215,7 +224,7 @@ if [ ! -f ${REDUCED} ]; then
         cp ${MAPPINGOUT}.filtered ${OUTPUT}/${BC}.reduced.txt
         log "Done"
 else
-        warn "filtered results exist... skipping"
+        warn "Filtered results exist... skipping"
 fi
 
 if [ ! -f ${REDUCED}.upstream ]; then
@@ -228,7 +237,6 @@ if [ ! -f ${REDUCED}.upstream ]; then
 
 	log "Parsing BLAST results"
 
-	log "Writting files to be analyzed separetelly"
 	#a. hits for which we cannot extract 150bp upstreeam the MGE"
 	grep -v "#" ${REDUCED}.mge | \
 		awk 'BEGIN{OFS="\t"}{if($3<150){print$0}}' \
@@ -258,7 +266,7 @@ if [ ! -f ${REDUCED}.upstream ]; then
 	# (ii) the MGE size, and (iii) the MGE name. These three fields are
 	# separated by '_' (see the last awk field: $2_$5_$1)
 
-	log "Writting upstream flank sequences"
+	log "Extracting 300bp flank sequences"
 	$CONDA_PREFIX/bin/bedtools getfasta -fi ${FASTA} -name -bed <(cat \
 		${REDUCED}.extract | \
 		awk 'BEGIN{OFS="\t"}{ print $2, $3-150, $3, $2"_"$5"_"$1}') \
@@ -270,7 +278,6 @@ if [ ! -f ${REDUCED}.upstream ]; then
 		awk 'BEGIN{OFS="\t"}{ print $2, $4, $4+150, $2"_"$5"_"$1}') \
 		> ${REDUCED}.query.downstream
 
-	log "Merging upstream and downstream flanks"
 	$CONDA_PREFIX/bin/python "$HOME_DIR"/MergeUpstreamDownstream.py \
 		-u ${REDUCED}.query.upstream \
 		-d ${REDUCED}.query.downstream \
@@ -284,7 +291,7 @@ cp ${REDUCED}.query.merged ${OUTPUT}/${BC}-flanks-query.fa
 BLASTOUT=${REDUCED}.blastn
 
 if [ ! -f "${BLASTOUT}" ]; then
-        log "Querying 300bp frags with BLASTn"
+        log "Mapping flanks with BLASTn"
         $CONDA_PREFIX/bin/blastn -db ${FASTA} -query ${REDUCED}.query.merged \
 		-evalue 1e-03 \
 		-outfmt "7 qacc sacc sstart send length qlen slen evalue" \
@@ -292,7 +299,7 @@ if [ ! -f "${BLASTOUT}" ]; then
 		-out $BLASTOUT > ${OUTPUT}/tmp/blastn.err 2>&1
 		DONEmsg
 else
-	warn "MGE-mapping already done... skipping"
+	warn "Flanks mapping already done... skipping"
 fi
 
 cp "${BLASTOUT}" "${OUTPUT}/${BC}-flanks-results.outfmt7"
@@ -301,7 +308,7 @@ CLASSIFICATION="${OUTPUT}/${BC}_CLASSIFICATION/"
 mkdir -p "${CLASSIFICATION}"
 
 if [ ! -f "${CLASSIFICATION}/${BC}.optionalMGEs.txt" ]; then
-	log "Classificating reads as fixed or optional"
+	log "Annotating reads with unfixed MGEs"
 	$CONDA_PREFIX/bin/python "$HOME_DIR"/scripts/GetNonFixedReads.py \
 		--input "${BLASTOUT}" \
 		--prefix "${BC}" \
