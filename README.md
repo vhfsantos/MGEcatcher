@@ -35,17 +35,17 @@ Now you can run **MGEcatcher** properly.
 # Usage
 
 You must run **MGEcatcher** for a single `fastq` file of your library at a time. 
-So you may also want to use the `-b` parameter to inform the barcode identifier for the running file.
+So you may want to use the `--prefix` parameter to inform the barcode identifier for the output files.
 
 
 ```sh
-MGEcatcher -r reads.fastq -m mges.fasta -o output_name -b Barcode01 -t 10
+MGEcatcher --reads <reads.fq> --mge_seed <mge.fa> [--threads <N>] \\
+           --output <path/to/output/> --prefix <BC01>
 
- -r          fastq file for basecalled reads to be used as subject
- -m          fasta file containing MGE sequences to be used as query
- -o          output filename
- -b          barcode identifier (ex.: BC01)
- -t          number of threads (default: 10)
+     --reads        Fastq file for basecalled reads to be used as subject
+     --mge_seed     Fasta file containing MGE sequences to be used as query
+     --output       Output dir name; will be created if does not exist
+     --prefix       Prefix for output files (ex.: BC01)
 ```
 
 # Output files
