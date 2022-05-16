@@ -22,7 +22,7 @@ However, it requires the following:
 
 If you have [Conda](https://docs.conda.io/en/latest/) in your machine, you can easily install all these tools using the `env.yml` file provided here.
 
-```sh
+```
 # clone this repo
 git clone https://github.com/vhfsantos/MGEcatcher
 
@@ -38,7 +38,7 @@ conda activate MGEcatcher
 
 After, you might want to execute the `MGEcatcher` script to see if the installation was done correctly:
 
-```sh
+```
 ./MGEcatcher -h
 ```
 
@@ -62,7 +62,7 @@ You must run **MGEcatcher** for a single `fastq` file of your library at a time.
 So you may want to use the `--prefix` parameter to inform the barcode identifier for the output files.
 
 
-```sh
+```
 MGEcatcher --reads <reads.fq> --mge_seed <mge.fa> [--threads <N>] \\
            --output <path/to/output/> --prefix <BC01>
 
